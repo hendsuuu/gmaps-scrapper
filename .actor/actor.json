@@ -12,8 +12,6 @@
     "categories": ["LEAD_GENERATION", "BUSINESS", "MARKETING"],
     "readme": "./README.md",
     "storages": {
-        "dataset": {
-            "$ref": "./dataset_schema.json"
-        }
+        "dataset": "./dataset_schema.json"
     }
 }
