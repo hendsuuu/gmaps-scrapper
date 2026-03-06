@@ -21,6 +21,7 @@ class BusinessLead:
     place_id: str = ""
     name: str = ""
     phone: str = ""
+    email: str = ""
     website: str = ""
     rating: Optional[float] = None
     review_count: Optional[int] = None
@@ -392,6 +393,13 @@ class GoogleMapsScraper:
             except Exception:
                 pass
 
+            # Email – scrape from business website
+            if lead.website:
+                try:
+                    lead.email = await self._scrape_email_from_website(browser, lead.website)
+                except Exception as e:
+                    logger.debug("Email scrape failed for %s: %s", lead.website, e)
+
             # Permanently closed
             try:
                 closed_el = page.locator(
@@ -442,6 +450,106 @@ class GoogleMapsScraper:
         if lead.name:
             return lead
         return None
+
+    # ------------------------------------------------------------------
+    # Email scraping from business website
+    # ------------------------------------------------------------------
+
+    # Regex for extracting email addresses from HTML/text
+    _EMAIL_RE = re.compile(
+        r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}",
+        re.IGNORECASE,
+    )
+    # Prefixes to skip – these are almost never real contact emails
+    _EMAIL_BLACKLIST = (
+        "noreply", "no-reply", "donotreply", "do-not-reply",
+        "support@sentry", "mailer", "bounce", "postmaster",
+        "@example", "@domain", "@email", "wixpress",
+        "@cloudflare", "@squarespace", "@shopify",
+    )
+
+    def _clean_emails(self, candidates: list[str]) -> list[str]:
+        """Deduplicate and filter out likely non-contact emails."""
+        seen: set[str] = set()
+        result: list[str] = []
+        for em in candidates:
+            em = em.lower().strip(".")
+            if em in seen:
+                continue
+            seen.add(em)
+            if any(bl in em for bl in self._EMAIL_BLACKLIST):
+                continue
+            # Skip image/asset file extensions accidentally matched
+            if re.search(r"\.(png|jpg|gif|svg|webp|js|css|woff)$", em):
+                continue
+            result.append(em)
+        return result
+
+    async def _scrape_email_from_website(
+        self, browser: Browser, website_url: str
+    ) -> str:
+        """
+        Visit a business website and attempt to extract a contact email.
+        Strategy:
+          1. Load homepage, look for mailto: links first (high confidence)
+          2. Scan full page HTML with regex
+          3. If nothing found, try /contact and /about pages
+        Returns the first clean email found, or "" if none.
+        """
+        EMAIL_TIMEOUT = 12_000  # ms per page
+        CONTACT_SLUGS = ["/contact", "/contact-us", "/about", "/about-us", "/kontakt"]
+
+        async def _extract_from_page(pg: Page) -> list[str]:
+            """Return all raw email candidates from the current page."""
+            found: list[str] = []
+            # 1) Explicit mailto: href attributes (highest confidence)
+            try:
+                mailto_links = await pg.locator('a[href^="mailto:"]').all()
+                for link in mailto_links:
+                    href = await link.get_attribute("href") or ""
+                    em = href.replace("mailto:", "").split("?")[0].strip()
+                    if em:
+                        found.append(em)
+            except Exception:
+                pass
+            # 2) Regex scan over full page HTML
+            try:
+                html = await pg.content()
+                found.extend(self._EMAIL_RE.findall(html))
+            except Exception:
+                pass
+            return found
+
+        page = await self._new_page(browser)
+        try:
+            # ── Homepage ────────────────────────────────────────────────
+            try:
+                await page.goto(website_url, timeout=EMAIL_TIMEOUT, wait_until="domcontentloaded")
+            except Exception as e:
+                logger.debug("Email scraper: could not load %s (%s)", website_url, e)
+                return ""
+
+            candidates = await _extract_from_page(page)
+            clean = self._clean_emails(candidates)
+            if clean:
+                return clean[0]
+
+            # ── Try common contact/about sub-pages ───────────────────────
+            from urllib.parse import urlparse, urljoin
+            base = f"{urlparse(website_url).scheme}://{urlparse(website_url).netloc}"
+            for slug in CONTACT_SLUGS:
+                try:
+                    await page.goto(urljoin(base, slug), timeout=EMAIL_TIMEOUT, wait_until="domcontentloaded")
+                    sub_candidates = await _extract_from_page(page)
+                    clean = self._clean_emails(sub_candidates)
+                    if clean:
+                        return clean[0]
+                except Exception:
+                    continue
+        finally:
+            await page.context.close()
+
+        return ""
 
     # ------------------------------------------------------------------
     # Address parsing helpers

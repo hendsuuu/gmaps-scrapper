@@ -8,6 +8,10 @@ Usage examples:
     python run_local.py --query "cafe" --location "London, UK" --visible
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+
 from utils import setup_logging
 from scraper import GoogleMapsScraper, load_proxies
 import argparse
@@ -15,12 +19,8 @@ import asyncio
 import csv
 import json
 import logging
-import os
 import re
-import sys
 from datetime import datetime
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 
 COLUMNS = [
@@ -28,6 +28,7 @@ COLUMNS = [
     "name",
     "category",
     "phone",
+    "email",
     "website",
     "rating",
     "review_count",

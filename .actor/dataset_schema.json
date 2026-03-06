@@ -26,6 +26,11 @@
             "type": "string",
             "description": "Official website URL of the business."
         },
+        "email": {
+            "title": "Email",
+            "type": "string",
+            "description": "Contact email address scraped from the business website."
+        },
         "rating": {
             "title": "Rating",
             "type": "number",
@@ -115,6 +120,7 @@
                     "name",
                     "category",
                     "phone",
+                    "email",
                     "website",
                     "rating",
                     "review_count",
@@ -139,6 +145,10 @@
                     },
                     "phone": {
                         "label": "Phone",
+                        "format": "text"
+                    },
+                    "email": {
+                        "label": "Email",
                         "format": "text"
                     },
                     "website": {
