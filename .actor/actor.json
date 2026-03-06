@@ -2,7 +2,7 @@
     "actorSpecification": 1,
     "name": "google-maps-leads-scraper",
     "title": "Google Maps Leads Scraper",
-    "description": "Scrapes business leads from Google Maps. Enter keywords and locations to extract business name, phone, website, address, rating, reviews, and more. Export directly to Google Sheets.",
+    "description": "Scrape business leads from Google Maps by keyword and location. Extracts name, phone, website, address, rating, reviews, coordinates, and more. Exports to CSV & JSON.",
     "version": "1.0",
     "meta": {
         "templateId": "python-playwright"
@@ -10,5 +10,10 @@
     "input": "./input_schema.json",
     "dockerfile": "./Dockerfile",
     "categories": ["LEAD_GENERATION", "BUSINESS", "MARKETING"],
-    "readme": "./README.md"
+    "readme": "./README.md",
+    "storages": {
+        "dataset": {
+            "$ref": "./dataset_schema.json"
+        }
+    }
 }

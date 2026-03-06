@@ -1,0 +1,184 @@
+{
+    "actorSpecification": 1,
+    "fields": {
+        "place_id": {
+            "title": "Place ID",
+            "type": "string",
+            "description": "Unique Google Maps place identifier (e.g. ChIJ...)."
+        },
+        "name": {
+            "title": "Business Name",
+            "type": "string",
+            "description": "Name of the business as listed on Google Maps."
+        },
+        "category": {
+            "title": "Category",
+            "type": "string",
+            "description": "Primary business category / type (e.g. Restaurant, Hotel)."
+        },
+        "phone": {
+            "title": "Phone",
+            "type": "string",
+            "description": "Contact phone number including country code."
+        },
+        "website": {
+            "title": "Website",
+            "type": "string",
+            "description": "Official website URL of the business."
+        },
+        "rating": {
+            "title": "Rating",
+            "type": "number",
+            "description": "Average star rating on Google Maps (0–5)."
+        },
+        "review_count": {
+            "title": "Review Count",
+            "type": "integer",
+            "description": "Total number of Google reviews."
+        },
+        "address": {
+            "title": "Full Address",
+            "type": "string",
+            "description": "Full formatted address as shown on Google Maps."
+        },
+        "city": {
+            "title": "City",
+            "type": "string",
+            "description": "Parsed city name from the address."
+        },
+        "state": {
+            "title": "State / Province",
+            "type": "string",
+            "description": "State or province parsed from the address."
+        },
+        "postal_code": {
+            "title": "Postal Code",
+            "type": "string",
+            "description": "ZIP or postal code parsed from the address."
+        },
+        "country": {
+            "title": "Country",
+            "type": "string",
+            "description": "Country name parsed from the address."
+        },
+        "latitude": {
+            "title": "Latitude",
+            "type": "number",
+            "description": "GPS latitude coordinate."
+        },
+        "longitude": {
+            "title": "Longitude",
+            "type": "number",
+            "description": "GPS longitude coordinate."
+        },
+        "opening_hours": {
+            "title": "Opening Hours",
+            "type": "string",
+            "description": "Operating hours summary (e.g. Mon–Fri 09:00–22:00)."
+        },
+        "price_range": {
+            "title": "Price Range",
+            "type": "string",
+            "description": "Price indicator: $, $$, $$$, or $$$$."
+        },
+        "permanently_closed": {
+            "title": "Permanently Closed",
+            "type": "boolean",
+            "description": "True if the business is permanently closed."
+        },
+        "plus_code": {
+            "title": "Plus Code",
+            "type": "string",
+            "description": "Google Plus Code for the location."
+        },
+        "google_maps_url": {
+            "title": "Google Maps URL",
+            "type": "string",
+            "description": "Direct link to the Google Maps listing."
+        },
+        "search_query": {
+            "title": "Search Query",
+            "type": "string",
+            "description": "The keyword used to find this result (e.g. restaurant)."
+        },
+        "search_location": {
+            "title": "Search Location",
+            "type": "string",
+            "description": "The location used for this search (e.g. Bali, Indonesia)."
+        }
+    },
+    "views": {
+        "overview": {
+            "title": "Business Leads Overview",
+            "transformation": {
+                "fields": [
+                    "name",
+                    "category",
+                    "phone",
+                    "website",
+                    "rating",
+                    "review_count",
+                    "address",
+                    "city",
+                    "country",
+                    "google_maps_url",
+                    "search_query",
+                    "search_location"
+                ]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "name": {
+                        "label": "Business Name",
+                        "format": "text"
+                    },
+                    "category": {
+                        "label": "Category",
+                        "format": "text"
+                    },
+                    "phone": {
+                        "label": "Phone",
+                        "format": "text"
+                    },
+                    "website": {
+                        "label": "Website",
+                        "format": "link"
+                    },
+                    "rating": {
+                        "label": "Rating ⭐",
+                        "format": "number"
+                    },
+                    "review_count": {
+                        "label": "Reviews",
+                        "format": "number"
+                    },
+                    "address": {
+                        "label": "Address",
+                        "format": "text"
+                    },
+                    "city": {
+                        "label": "City",
+                        "format": "text"
+                    },
+                    "country": {
+                        "label": "Country",
+                        "format": "text"
+                    },
+                    "google_maps_url": {
+                        "label": "Maps Link",
+                        "format": "link"
+                    },
+                    "search_query": {
+                        "label": "Query",
+                        "format": "text"
+                    },
+                    "search_location": {
+                        "label": "Location",
+                        "format": "text"
+                    }
+                }
+            }
+        }
+    }
+}
