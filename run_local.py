@@ -8,19 +8,18 @@ Usage examples:
     python run_local.py --query "cafe" --location "London, UK" --visible
 """
 
+from datetime import datetime
+import re
+import logging
+import json
+import csv
+import asyncio
+import argparse
+from scraper import GoogleMapsScraper, load_proxies
+from utils import setup_logging
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-
-from utils import setup_logging
-from scraper import GoogleMapsScraper, load_proxies
-import argparse
-import asyncio
-import csv
-import json
-import logging
-import re
-from datetime import datetime
 
 
 COLUMNS = [

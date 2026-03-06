@@ -398,7 +398,8 @@ class GoogleMapsScraper:
                 try:
                     lead.email = await self._scrape_email_from_website(browser, lead.website)
                 except Exception as e:
-                    logger.debug("Email scrape failed for %s: %s", lead.website, e)
+                    logger.debug("Email scrape failed for %s: %s",
+                                 lead.website, e)
 
             # Permanently closed
             try:
@@ -497,7 +498,8 @@ class GoogleMapsScraper:
         Returns the first clean email found, or "" if none.
         """
         EMAIL_TIMEOUT = 12_000  # ms per page
-        CONTACT_SLUGS = ["/contact", "/contact-us", "/about", "/about-us", "/kontakt"]
+        CONTACT_SLUGS = ["/contact", "/contact-us",
+                         "/about", "/about-us", "/kontakt"]
 
         async def _extract_from_page(pg: Page) -> list[str]:
             """Return all raw email candidates from the current page."""
@@ -526,7 +528,8 @@ class GoogleMapsScraper:
             try:
                 await page.goto(website_url, timeout=EMAIL_TIMEOUT, wait_until="domcontentloaded")
             except Exception as e:
-                logger.debug("Email scraper: could not load %s (%s)", website_url, e)
+                logger.debug(
+                    "Email scraper: could not load %s (%s)", website_url, e)
                 return ""
 
             candidates = await _extract_from_page(page)

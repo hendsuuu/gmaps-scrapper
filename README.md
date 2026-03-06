@@ -14,56 +14,56 @@ This Actor scrapes publicly available business information from Google Maps base
 
 ## ✨ Features
 
-| Feature | Detail |
-|---|---|
-| **Multi-query × Multi-location** | Run any number of keyword + location combinations in one run |
-| **Rich data extraction** | 19+ fields per business |
-| **Proxy rotation** | Supply a list of proxy URLs — rotated automatically for reliability |
-| **CSV + JSON export** | Both formats always saved to Key-Value Store for direct download |
-| **Apify Dataset** | Every record pushed to Dataset (exportable as CSV / JSON / XLSX / XML) |
-| **Reliable connection** | Proxy used only for search page; detail pages fetched via direct connection |
-| **Production-ready** | Battle-tested Playwright engine, graceful error handling, skip-and-continue |
+| Feature                          | Detail                                                                      |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| **Multi-query × Multi-location** | Run any number of keyword + location combinations in one run                |
+| **Rich data extraction**         | 19+ fields per business                                                     |
+| **Proxy rotation**               | Supply a list of proxy URLs — rotated automatically for reliability         |
+| **CSV + JSON export**            | Both formats always saved to Key-Value Store for direct download            |
+| **Apify Dataset**                | Every record pushed to Dataset (exportable as CSV / JSON / XLSX / XML)      |
+| **Reliable connection**          | Proxy used only for search page; detail pages fetched via direct connection |
+| **Production-ready**             | Battle-tested Playwright engine, graceful error handling, skip-and-continue |
 
 ---
 
 ## 📋 Output Fields
 
-| Field | Description |
-|---|---|
-| `place_id` | Unique Google Maps place identifier |
-| `name` | Business name |
-| `category` | Business category / type |
-| `phone` | Contact phone number |
-| `website` | Official website URL |
-| `rating` | Star rating (0–5) |
-| `review_count` | Total number of Google reviews |
-| `address` | Full formatted address |
-| `city` | Parsed city name |
-| `state` | State / province |
-| `postal_code` | ZIP / postal code |
-| `country` | Country name |
-| `latitude` | GPS latitude |
-| `longitude` | GPS longitude |
-| `opening_hours` | Operating hours summary |
-| `price_range` | Price indicator ($ – $$$$) |
+| Field                | Description                                |
+| -------------------- | ------------------------------------------ |
+| `place_id`           | Unique Google Maps place identifier        |
+| `name`               | Business name                              |
+| `category`           | Business category / type                   |
+| `phone`              | Contact phone number                       |
+| `website`            | Official website URL                       |
+| `rating`             | Star rating (0–5)                          |
+| `review_count`       | Total number of Google reviews             |
+| `address`            | Full formatted address                     |
+| `city`               | Parsed city name                           |
+| `state`              | State / province                           |
+| `postal_code`        | ZIP / postal code                          |
+| `country`            | Country name                               |
+| `latitude`           | GPS latitude                               |
+| `longitude`          | GPS longitude                              |
+| `opening_hours`      | Operating hours summary                    |
+| `price_range`        | Price indicator ($ – $$$$)                 |
 | `permanently_closed` | Whether the business is permanently closed |
-| `plus_code` | Google Plus Code |
-| `google_maps_url` | Direct link to the Google Maps listing |
-| `search_query` | The keyword used for this result |
-| `search_location` | The location used for this result |
+| `plus_code`          | Google Plus Code                           |
+| `google_maps_url`    | Direct link to the Google Maps listing     |
+| `search_query`       | The keyword used for this result           |
+| `search_location`    | The location used for this result          |
 
 ---
 
 ## ⚙️ Input Parameters
 
-| Parameter | Type | Required | Default | Description |
-|---|---|---|---|---|
-| `queries` | `string[]` | ✅ | – | Search keywords, e.g. `["restaurant", "hotel", "travel agent"]` |
-| `locations` | `string[]` | ✅ | – | Locations to search, e.g. `["Bali, Indonesia", "New York, USA"]` |
-| `maxResultsPerQuery` | `integer` | ❌ | `100` | Max leads per keyword × location pair (max 1000) |
-| `language` | `string` | ❌ | `en` | Browser locale — affects language of returned data |
-| `proxyList` | `string[]` | ❌ | `[]` | Proxy URLs for rotation (`http://user:pass@host:port`). Leave empty to run direct. |
-| `headless` | `boolean` | ❌ | `true` | Run browser headless (always `true` on Apify Cloud) |
+| Parameter            | Type       | Required | Default | Description                                                                        |
+| -------------------- | ---------- | -------- | ------- | ---------------------------------------------------------------------------------- |
+| `queries`            | `string[]` | ✅       | –       | Search keywords, e.g. `["restaurant", "hotel", "travel agent"]`                    |
+| `locations`          | `string[]` | ✅       | –       | Locations to search, e.g. `["Bali, Indonesia", "New York, USA"]`                   |
+| `maxResultsPerQuery` | `integer`  | ❌       | `100`   | Max leads per keyword × location pair (max 1000)                                   |
+| `language`           | `string`   | ❌       | `en`    | Browser locale — affects language of returned data                                 |
+| `proxyList`          | `string[]` | ❌       | `[]`    | Proxy URLs for rotation (`http://user:pass@host:port`). Leave empty to run direct. |
+| `headless`           | `boolean`  | ❌       | `true`  | Run browser headless (always `true` on Apify Cloud)                                |
 
 ---
 
@@ -115,14 +115,14 @@ Output files are always auto-named: `restaurant_bali-indonesia_20260306_083000.c
 
 ### CLI Options
 
-| Flag | Short | Default | Description |
-|---|---|---|---|
-| `--query` | `-q` | required | Search keyword |
-| `--location` | `-l` | required | Location to search |
-| `--max` | `-m` | `50` | Max results |
-| `--output` | `-o` | auto-generated | Base filename (no extension needed) |
-| `--proxies` | `-p` | `proxies.txt` | Path to proxy list file |
-| `--visible` | | headless | Show browser window |
+| Flag         | Short | Default        | Description                         |
+| ------------ | ----- | -------------- | ----------------------------------- |
+| `--query`    | `-q`  | required       | Search keyword                      |
+| `--location` | `-l`  | required       | Location to search                  |
+| `--max`      | `-m`  | `50`           | Max results                         |
+| `--output`   | `-o`  | auto-generated | Base filename (no extension needed) |
+| `--proxies`  | `-p`  | `proxies.txt`  | Path to proxy list file             |
+| `--visible`  |       | headless       | Show browser window                 |
 
 ---
 
@@ -138,6 +138,7 @@ http://user2:pass2@proxy2.example.com:3128
 ```
 
 The scraper:
+
 - Randomly samples up to **20 proxies** for the initial search page connection
 - Uses the **first working proxy** to collect listing URLs
 - Switches to **direct connection** for scraping each listing detail (faster, more stable)
@@ -197,6 +198,7 @@ Encountered a bug, unexpected output, or need a custom feature?
   Post in the community forum for general Apify-related questions.
 
 When reporting an issue, please include:
+
 1. Your input JSON (`queries`, `locations`, `maxResultsPerQuery`)
 2. The full error message from the Actor log
 3. The Actor run ID (visible in the Apify Console URL)
