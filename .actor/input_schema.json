@@ -1,0 +1,58 @@
+{
+    "title": "Google Maps Leads Scraper – Input",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "queries": {
+            "title": "Search Keywords",
+            "type": "array",
+            "description": "List of business types or keywords to search for. Example: [\"restaurant\", \"hotel\", \"travel agent\"]",
+            "editor": "stringList",
+            "prefill": ["restaurant"],
+            "minItems": 1
+        },
+        "locations": {
+            "title": "Locations",
+            "type": "array",
+            "description": "Cities, regions, or countries to search in. Example: [\"Bali, Indonesia\", \"New York, USA\"]",
+            "editor": "stringList",
+            "prefill": ["Bali, Indonesia"],
+            "minItems": 1
+        },
+        "maxResultsPerQuery": {
+            "title": "Max Results Per Query",
+            "type": "integer",
+            "description": "Maximum number of leads to collect for each query+location combination.",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 1000,
+            "unit": "results"
+        },
+        "language": {
+            "title": "Language",
+            "type": "string",
+            "description": "Browser language / locale for Google Maps. Affects the language of returned results.",
+            "default": "en",
+            "editor": "select",
+            "enum": ["en", "id", "de", "fr", "es", "pt", "ja", "ko", "zh-CN", "ar"],
+            "enumTitles": ["English", "Indonesian", "German", "French", "Spanish", "Portuguese", "Japanese", "Korean", "Chinese (Simplified)", "Arabic"]
+        },
+        "proxyList": {
+            "title": "Proxy List",
+            "type": "array",
+            "description": "Optional list of proxy URLs for rotation. One URL per entry. Format: http://user:pass@host:port or http://host:port. Leave empty to run without proxy.",
+            "editor": "stringList",
+            "groupCaption": "Proxy Settings",
+            "groupDescription": "Add proxy URLs to rotate IPs and avoid rate limiting"
+        },
+        "headless": {
+            "title": "Headless Browser",
+            "type": "boolean",
+            "description": "Run Chromium in headless mode. Should be true for production runs.",
+            "default": true,
+            "groupCaption": "Advanced Settings",
+            "groupDescription": "Fine-tune scraper behaviour"
+        }
+    },
+    "required": ["queries", "locations"]
+}
