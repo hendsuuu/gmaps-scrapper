@@ -1,0 +1,19 @@
+{
+    "actorKeyValueStoreSchemaVersion": 1,
+    "title": "Google Maps Leads Scraper Downloads",
+    "description": "Exported files containing all scraped business leads.",
+    "collections": {
+        "leadsCSV": {
+            "title": "CSV Export",
+            "description": "All scraped leads in CSV format (UTF-8 with BOM for Excel and Google Sheets compatibility).",
+            "key": "leads.csv",
+            "contentTypes": ["text/csv"]
+        },
+        "leadsJSON": {
+            "title": "JSON Export",
+            "description": "All scraped leads in JSON format, ready for programmatic use or import.",
+            "key": "leads.json",
+            "contentTypes": ["application/json"]
+        }
+    }
+}

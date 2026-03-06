@@ -1,0 +1,24 @@
+{
+    "actorOutputSchemaVersion": 1,
+    "title": "Google Maps Leads Scraper Output",
+    "properties": {
+        "dataset": {
+            "type": "string",
+            "title": "Scraped Leads Dataset",
+            "description": "Full dataset of business leads scraped from Google Maps. Each item contains name, phone, website, address, rating, reviews, and more.",
+            "template": "{{links.apiDefaultDatasetUrl}}/items"
+        },
+        "leadsCSV": {
+            "type": "string",
+            "title": "Leads CSV Download",
+            "description": "All scraped leads exported as a UTF-8 CSV file, compatible with Excel and Google Sheets.",
+            "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/leads.csv"
+        },
+        "leadsJSON": {
+            "type": "string",
+            "title": "Leads JSON Download",
+            "description": "All scraped leads exported as a structured JSON file.",
+            "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/leads.json"
+        }
+    }
+}
