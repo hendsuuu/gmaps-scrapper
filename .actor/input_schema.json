@@ -41,9 +41,7 @@
             "title": "Proxy List",
             "type": "array",
             "description": "Optional list of proxy URLs for rotation. One URL per entry. Format: http://user:pass@host:port or http://host:port. Leave empty to run without proxy.",
-            "editor": "stringList",
-            "groupCaption": "Proxy Settings",
-            "groupDescription": "Add proxy URLs to rotate IPs and avoid rate limiting"
+            "editor": "stringList"
         },
         "headless": {
             "title": "Headless Browser",
