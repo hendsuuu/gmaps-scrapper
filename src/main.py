@@ -4,8 +4,6 @@ Handles input validation, orchestration, dataset storage,
 and CSV + JSON export via Apify Key-Value Store.
 """
 
-from utils import setup_logging, sanitise_text
-from scraper import GoogleMapsScraper
 import asyncio
 import csv
 import io
@@ -16,8 +14,14 @@ import sys
 
 from apify import Actor
 
-# Ensure src is importable when run via Apify
-sys.path.insert(0, os.path.dirname(__file__))
+try:
+    from .scraper import GoogleMapsScraper, load_proxies
+    from .utils import sanitise_text, setup_logging
+except ImportError:  # pragma: no cover - fallback for direct script execution
+    # Ensure src is importable when run as a plain script
+    sys.path.insert(0, os.path.dirname(__file__))
+    from scraper import GoogleMapsScraper, load_proxies
+    from utils import sanitise_text, setup_logging
 
 
 logger = logging.getLogger(__name__)
@@ -82,7 +86,6 @@ async def main() -> None:
             # Fallback: try reading proxies.txt from the actor root
             proxies_path = os.path.join(
                 os.path.dirname(__file__), "..", "proxies.txt")
-            from scraper import load_proxies
             proxy_list = load_proxies(os.path.normpath(proxies_path))
 
         # ── Run scraper for every query × location combination ─────────────────

@@ -46,4 +46,6 @@ COPY --from=builder /root/.cache/ms-playwright /root/.cache/ms-playwright
 # Copy source
 COPY . .
 
-CMD ["python", "-m", "src.main"]
+EXPOSE 8000
+
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -4,16 +4,18 @@ Uses Playwright for browser automation to extract business data from Google Maps
 """
 
 import asyncio
+import inspect
+import logging
 import random
 import re
-import logging
-from typing import Optional
+from typing import Any, Awaitable, Callable, Optional
 from dataclasses import dataclass, asdict
 from urllib.parse import quote_plus
 
 from playwright.async_api import async_playwright, Browser, Page, TimeoutError as PlaywrightTimeoutError
 
 logger = logging.getLogger(__name__)
+ProgressCallback = Callable[[dict[str, Any]], Awaitable[None] | None]
 
 
 @dataclass
@@ -129,11 +131,27 @@ class GoogleMapsScraper:
     # ------------------------------------------------------------------
 
     # Maximum number of proxies to trial before giving up and using direct connection
-    MAX_PROXY_ATTEMPTS = 20
+    MAX_PROXY_ATTEMPTS = 5
     # Timeout (ms) used only for the initial connectivity test
     PROBE_TIMEOUT = 18_000
 
-    async def scrape(self, query: str, location: str) -> list[BusinessLead]:
+    async def _emit_progress(
+        self,
+        callback: Optional[ProgressCallback],
+        payload: dict[str, Any],
+    ) -> None:
+        if callback is None:
+            return
+        maybe_awaitable = callback(payload)
+        if inspect.isawaitable(maybe_awaitable):
+            await maybe_awaitable
+
+    async def scrape(
+        self,
+        query: str,
+        location: str,
+        progress_callback: Optional[ProgressCallback] = None,
+    ) -> list[BusinessLead]:
         """Run a full scrape for *query* in *location*.
 
         Connection strategy:
@@ -152,17 +170,48 @@ class GoogleMapsScraper:
             location=quote_plus(location),
         )
         logger.info("Starting scrape: query=%r location=%r", query, location)
+        await self._emit_progress(
+            progress_callback,
+            {
+                "stage": "collecting",
+                "message": "Opening Google Maps search results.",
+                "processed": 0,
+                "found": 0,
+                "total": 0,
+            },
+        )
 
         # ── Phase 1: collect listing URLs via proxy (or direct) ───────────────
         listing_urls = await self._fetch_listing_urls(search_url)
         if not listing_urls:
             logger.warning("No listings found – returning empty result")
+            await self._emit_progress(
+                progress_callback,
+                {
+                    "stage": "completed",
+                    "message": "No listings were found for this search.",
+                    "processed": 0,
+                    "found": 0,
+                    "total": 0,
+                },
+            )
             return []
 
         logger.info(
             "Found %d listings – scraping details via direct connection", len(listing_urls))
 
         # ── Phase 2: scrape each listing detail via direct connection ─────────
+        total_targets = min(len(listing_urls), self.max_results)
+        await self._emit_progress(
+            progress_callback,
+            {
+                "stage": "scraping",
+                "message": f"Found {total_targets} listings. Collecting details now.",
+                "processed": 0,
+                "found": 0,
+                "total": total_targets,
+            },
+        )
         async with async_playwright() as playwright:
             direct_browser = await self._get_browser(playwright, proxy=None)
             try:
@@ -180,12 +229,36 @@ class GoogleMapsScraper:
                     else:
                         logger.info("  [%d/%d] – skipped (no data)", idx + 1,
                                     min(len(listing_urls), self.max_results))
+                    await self._emit_progress(
+                        progress_callback,
+                        {
+                            "stage": "scraping",
+                            "message": (
+                                f"Scraped {idx + 1}/{total_targets} listings. "
+                                f"Collected {len(results)} valid leads so far."
+                            ),
+                            "processed": idx + 1,
+                            "found": len(results),
+                            "total": total_targets,
+                            "current_name": lead.name if lead else "",
+                        },
+                    )
                     await asyncio.sleep(0.4)
             finally:
                 await direct_browser.close()
 
         logger.info("Scrape complete – %d/%d results collected",
                     len(results), min(len(listing_urls), self.max_results))
+        await self._emit_progress(
+            progress_callback,
+            {
+                "stage": "completed",
+                "message": f"Finished scraping with {len(results)} leads collected.",
+                "processed": total_targets,
+                "found": len(results),
+                "total": total_targets,
+            },
+        )
         return results
 
     async def _fetch_listing_urls(self, search_url: str) -> list[str]:

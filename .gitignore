@@ -43,3 +43,5 @@ leads_*.json
 
 # Apify storage (local dev)
 apify_storage/
+
+data/excel
