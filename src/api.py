@@ -19,18 +19,46 @@ from uuid import uuid4
 
 from flask import Flask, jsonify, request
 
+# Utility imports (lightweight, always available)
 try:
-    from .exporters import build_base_name, save_records
-    from .scraper import GoogleMapsScraper, load_proxies
     from .utils import sanitise_text, setup_logging
-except ImportError:  # pragma: no cover - fallback for direct script execution
-    from exporters import build_base_name, save_records
-    from scraper import GoogleMapsScraper, load_proxies
+except ImportError:
     from utils import sanitise_text, setup_logging
-
 
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Lazy imports for heavy scraper / exporter modules.
+# Playwright may not be installed on all environments (e.g. cPanel shared
+# hosting).  We defer the import so the Flask app can always start and
+# serve lightweight endpoints (health-check, history, etc.).
+# ---------------------------------------------------------------------------
+_scraper_mod = None
+_exporters_mod = None
+
+
+def _get_scraper_mod():
+    global _scraper_mod
+    if _scraper_mod is None:
+        try:
+            from . import scraper as _mod
+        except ImportError:
+            import scraper as _mod
+        _scraper_mod = _mod
+    return _scraper_mod
+
+
+def _get_exporters_mod():
+    global _exporters_mod
+    if _exporters_mod is None:
+        try:
+            from . import exporters as _mod
+        except ImportError:
+            import exporters as _mod
+        _exporters_mod = _mod
+    return _exporters_mod
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PROXIES_FILE = PROJECT_ROOT / "proxies.txt"
@@ -172,10 +200,22 @@ def validate_scrape_request(payload: dict | None) -> tuple[dict | None, tuple | 
     return data, None
 
 
-_scraper_pool = concurrent.futures.ThreadPoolExecutor(
-    max_workers=2,
-    thread_name_prefix="scraper",
-)
+_scraper_pool: concurrent.futures.ThreadPoolExecutor | None = None
+_pool_lock = threading.Lock()
+
+
+def _get_scraper_pool() -> concurrent.futures.ThreadPoolExecutor:
+    """Lazily create the thread-pool so the module can be imported without
+    spawning threads (important for Passenger cold-start)."""
+    global _scraper_pool
+    if _scraper_pool is None:
+        with _pool_lock:
+            if _scraper_pool is None:
+                _scraper_pool = concurrent.futures.ThreadPoolExecutor(
+                    max_workers=2,
+                    thread_name_prefix="scraper",
+                )
+    return _scraper_pool
 
 
 def run_scrape_job(job_id: str, scrape_request: dict) -> None:
@@ -193,8 +233,11 @@ def run_scrape_job(job_id: str, scrape_request: dict) -> None:
     )
 
     try:
-        proxy_list = load_proxies(str(PROXIES_FILE))
-        scraper = GoogleMapsScraper(
+        scraper_mod = _get_scraper_mod()
+        exporters_mod = _get_exporters_mod()
+
+        proxy_list = scraper_mod.load_proxies(str(PROXIES_FILE))
+        scraper = scraper_mod.GoogleMapsScraper(
             max_results=scrape_request["max_results"],
             headless=scrape_request["headless"],
             language=scrape_request["language"],
@@ -229,11 +272,12 @@ def run_scrape_job(job_id: str, scrape_request: dict) -> None:
             for lead in leads
         ]
 
-        base_name = build_base_name(
+        base_name = exporters_mod.build_base_name(
             scrape_request["query"],
             scrape_request["location"],
         )
-        saved_files = save_records(records, base_name, PROJECT_ROOT)
+        saved_files = exporters_mod.save_records(
+            records, base_name, PROJECT_ROOT)
         latest_job = get_job(job_id) or {}
         latest_progress = latest_job.get("progress", {})
         processed = int(latest_progress.get("processed", len(records)))
@@ -342,7 +386,7 @@ def create_scrape_job():
     with jobs_lock:
         jobs[job_id] = job
 
-    _scraper_pool.submit(run_scrape_job, job_id, payload)
+    _get_scraper_pool().submit(run_scrape_job, job_id, payload)
     return jsonify({"job_id": job_id, "status": "queued"})
 
 

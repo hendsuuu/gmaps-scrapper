@@ -69,3 +69,39 @@ python run_local.py --query "clinic" --location "Semarang, Indonesia" --max 20
 
 Gunakan `passenger_wsgi.py` → `wsgi.py` → `src.api:app`.
 Pastikan Passenger dikonfigurasi untuk Python dan arahkan ke direktori `backend/`.
+
+### Langkah setup di cPanel
+
+1. **Setup Python App** di cPanel → pilih versi Python ≥ 3.10
+2. Set **Application root** ke folder `backend/`
+3. **Application startup file**: `passenger_wsgi.py` (otomatis terdeteksi)
+4. **Application Entry point**: `application`
+5. Klik **Create** → masuk ke virtual environment via terminal:
+
+```bash
+source /home/<user>/virtualenv/<app-path>/bin/activate
+cd /home/<user>/<app-path>
+pip install -r requirements.txt
+```
+
+6. **Playwright** (opsional — hanya jika server mendukung):
+
+```bash
+playwright install chromium
+```
+
+> Pada shared hosting, Playwright biasanya **tidak bisa dijalankan** karena
+> butuh browser binary + system libraries. API tetap bisa berjalan
+> (endpoint `/`, `/api/health`, `/api/history`) — hanya fitur scraping
+> yang memerlukan Playwright.
+
+7. **Restart** app dari cPanel → buka domain → harus muncul `{"message": "API is running"}`
+
+### Debugging 500 Internal Server Error
+
+- Cek **stderr.log** di folder app cPanel (biasanya `~/app-folder/stderr.log`)
+- `wsgi.py` sudah di-wrap try/except sehingga error import akan muncul di stderr.log
+- Penyebab umum:
+  - Dependency belum terinstall (`pip install -r requirements.txt`)
+  - Versi Python terlalu rendah (butuh ≥ 3.10 untuk type hints `dict | None`)
+  - Virtual environment tidak aktif / salah path
