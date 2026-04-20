@@ -212,7 +212,8 @@ def run_scrape_job(job_id: str, scrape_request: dict) -> None:
                 scraper.scrape(
                     query=scrape_request["query"],
                     location=scrape_request["location"],
-                    progress_callback=lambda payload: update_job_progress(job_id, payload),
+                    progress_callback=lambda payload: update_job_progress(
+                        job_id, payload),
                 )
             )
         finally:
@@ -310,7 +311,8 @@ def healthcheck():
 
 @app.route("/api/scrape/jobs", methods=["POST"])
 def create_scrape_job():
-    payload, error_response = validate_scrape_request(request.get_json(silent=True))
+    payload, error_response = validate_scrape_request(
+        request.get_json(silent=True))
     if error_response is not None:
         return error_response
 

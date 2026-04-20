@@ -42,13 +42,13 @@ python run_local.py --query "clinic" --location "Semarang, Indonesia" --max 20
 
 ## Endpoint API
 
-| Method | Path                          | Deskripsi                        |
-|--------|-------------------------------|----------------------------------|
-| GET    | `/api/health`                 | Health check                     |
-| POST   | `/api/scrape/jobs`            | Buat job scraping baru           |
-| GET    | `/api/scrape/jobs/<job_id>`   | Cek status & progress job        |
-| GET    | `/api/history`                | Daftar file hasil scraping       |
-| GET    | `/api/history/<filename>`     | Download file hasil scraping     |
+| Method | Path                        | Deskripsi                    |
+| ------ | --------------------------- | ---------------------------- |
+| GET    | `/api/health`               | Health check                 |
+| POST   | `/api/scrape/jobs`          | Buat job scraping baru       |
+| GET    | `/api/scrape/jobs/<job_id>` | Cek status & progress job    |
+| GET    | `/api/history`              | Daftar file hasil scraping   |
+| GET    | `/api/history/<filename>`   | Download file hasil scraping |
 
 ## Format request buat job
 
