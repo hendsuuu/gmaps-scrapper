@@ -118,7 +118,8 @@ async def get_job(job_id: str) -> dict:
     async with jobs_lock:
         job = jobs.get(job_id)
         if not job:
-            raise HTTPException(status_code=404, detail="Scrape job not found.")
+            raise HTTPException(
+                status_code=404, detail="Scrape job not found.")
         return copy.deepcopy(job)
 
 
@@ -233,9 +234,11 @@ async def run_scrape_job(job_id: str, request: ScrapeRequest) -> None:
             ),
         )
 
+
 @app.get("/")
 async def root():
     return {"message": "API jalan"}
+
 
 @app.get("/api/health")
 async def healthcheck() -> dict:
@@ -292,7 +295,8 @@ async def list_history() -> list[dict]:
     """Return a list of past scrape result files (newest first)."""
     if not JSON_DIR.exists():
         return []
-    files = sorted(JSON_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    files = sorted(JSON_DIR.glob("*.json"),
+                   key=lambda p: p.stat().st_mtime, reverse=True)
     results = []
     for f in files:
         stem = f.stem  # e.g. coffeshop_kudus-indonesia_20260306_130339
