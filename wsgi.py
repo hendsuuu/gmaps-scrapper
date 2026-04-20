@@ -1,21 +1,14 @@
-"""
-WSGI bridge for running the FastAPI ASGI app behind Passenger/cPanel.
-"""
-
-from __future__ import annotations
-
-import os
-import sys
-
+from fastapi import FastAPI
 from a2wsgi import ASGIMiddleware
 
+app = FastAPI()
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
+@app.get("/")
+async def root():
+    return {"hello": "world"}
 
-
-from src.api import app
-
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
 
 application = ASGIMiddleware(app)

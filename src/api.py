@@ -233,6 +233,9 @@ async def run_scrape_job(job_id: str, request: ScrapeRequest) -> None:
             ),
         )
 
+@app.get("/")
+async def root():
+    return {"message": "API jalan"}
 
 @app.get("/api/health")
 async def healthcheck() -> dict:
