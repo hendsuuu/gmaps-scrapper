@@ -46,6 +46,6 @@ COPY --from=builder /root/.cache/ms-playwright /root/.cache/ms-playwright
 # Copy source
 COPY . .
 
-EXPOSE 8000
+EXPOSE 5000
 
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["waitress-serve", "--host", "0.0.0.0", "--port", "5000", "src.api:app"]

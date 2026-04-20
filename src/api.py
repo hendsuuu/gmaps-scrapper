@@ -1,5 +1,5 @@
 """
-FastAPI service that exposes the scraper to the Next.js frontend.
+Flask service that exposes the scraper to WSGI environments such as cPanel/Passenger.
 """
 
 from __future__ import annotations
@@ -7,16 +7,17 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import copy
+import json
 import logging
 import os
+import re
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from flask import Flask, jsonify, request
 
 try:
     from .exporters import build_base_name, save_records
@@ -33,12 +34,9 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PROXIES_FILE = PROJECT_ROOT / "proxies.txt"
+JSON_DIR = PROJECT_ROOT / "data" / "json"
 
-app = FastAPI(
-    title="Leads Scrapper API",
-    version="1.0.0",
-    description="Backend API for running Google Maps scraping jobs with progress tracking.",
-)
+app = Flask(__name__)
 
 frontend_origins = [
     origin.strip()
@@ -49,25 +47,9 @@ frontend_origins = [
     if origin.strip()
 ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=frontend_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-class ScrapeRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=120)
-    location: str = Field(..., min_length=1, max_length=160)
-    max_results: int = Field(default=20, ge=1, le=120)
-    headless: bool = True
-    language: str = Field(default="en", min_length=2, max_length=10)
-
 
 jobs: dict[str, dict] = {}
-jobs_lock = asyncio.Lock()
+jobs_lock = threading.Lock()
 
 
 def now_iso() -> str:
@@ -95,13 +77,13 @@ def build_progress(stage: str, message: str, processed: int, found: int, total: 
     }
 
 
-async def set_job(job_id: str, **fields) -> None:
-    async with jobs_lock:
+def set_job(job_id: str, **fields) -> None:
+    with jobs_lock:
         jobs[job_id].update(fields)
 
 
-async def update_job_progress(job_id: str, payload: dict) -> None:
-    async with jobs_lock:
+def update_job_progress(job_id: str, payload: dict) -> None:
+    with jobs_lock:
         progress = build_progress(
             stage=payload.get("stage", "running"),
             message=payload.get("message", ""),
@@ -114,12 +96,11 @@ async def update_job_progress(job_id: str, payload: dict) -> None:
         jobs[job_id]["progress"] = progress
 
 
-async def get_job(job_id: str) -> dict:
-    async with jobs_lock:
+def get_job(job_id: str) -> dict | None:
+    with jobs_lock:
         job = jobs.get(job_id)
         if not job:
-            raise HTTPException(
-                status_code=404, detail="Scrape job not found.")
+            return None
         return copy.deepcopy(job)
 
 
@@ -132,14 +113,73 @@ def prepare_record(record: dict, query: str, location: str) -> dict:
     return prepared
 
 
-# Thread pool for Playwright (Windows needs ProactorEventLoop for subprocesses)
+def json_error(message: str, status_code: int):
+    return jsonify({"detail": message}), status_code
+
+
+def parse_bool(value, default: bool = True) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "off"}:
+            return False
+    return bool(value)
+
+
+def validate_scrape_request(payload: dict | None) -> tuple[dict | None, tuple | None]:
+    if not isinstance(payload, dict):
+        return None, json_error("Request body must be a JSON object.", 400)
+
+    query = str(payload.get("query", "")).strip()
+    location = str(payload.get("location", "")).strip()
+    language = str(payload.get("language", "en")).strip()
+    headless = parse_bool(payload.get("headless", True), default=True)
+
+    max_results_raw = payload.get("max_results", 20)
+    try:
+        max_results = int(max_results_raw)
+    except (TypeError, ValueError):
+        return None, json_error("Field 'max_results' must be an integer.", 400)
+
+    if not query:
+        return None, json_error("Field 'query' is required.", 400)
+    if len(query) < 1 or len(query) > 120:
+        return None, json_error("Field 'query' must be between 1 and 120 characters.", 400)
+
+    if not location:
+        return None, json_error("Field 'location' is required.", 400)
+    if len(location) < 1 or len(location) > 160:
+        return None, json_error("Field 'location' must be between 1 and 160 characters.", 400)
+
+    if max_results < 1 or max_results > 120:
+        return None, json_error("Field 'max_results' must be between 1 and 120.", 400)
+
+    if len(language) < 2 or len(language) > 10:
+        return None, json_error("Field 'language' must be between 2 and 10 characters.", 400)
+
+    data = {
+        "query": query,
+        "location": location,
+        "max_results": max_results,
+        "headless": headless,
+        "language": language,
+    }
+    return data, None
+
+
 _scraper_pool = concurrent.futures.ThreadPoolExecutor(
-    max_workers=2, thread_name_prefix="scraper",
+    max_workers=2,
+    thread_name_prefix="scraper",
 )
 
 
-async def run_scrape_job(job_id: str, request: ScrapeRequest) -> None:
-    await set_job(
+def run_scrape_job(job_id: str, scrape_request: dict) -> None:
+    set_job(
         job_id,
         status="running",
         started_at=now_iso(),
@@ -155,56 +195,50 @@ async def run_scrape_job(job_id: str, request: ScrapeRequest) -> None:
     try:
         proxy_list = load_proxies(str(PROXIES_FILE))
         scraper = GoogleMapsScraper(
-            max_results=request.max_results,
-            headless=request.headless,
-            language=request.language,
+            max_results=scrape_request["max_results"],
+            headless=scrape_request["headless"],
+            language=scrape_request["language"],
             proxy_list=proxy_list,
         )
 
-        # Run Playwright in a dedicated thread with its own event loop.
-        # On Windows the main uvicorn loop may not support subprocess_exec
-        # which Playwright needs to launch the browser process.
-        main_loop = asyncio.get_running_loop()
+        if sys.platform == "win32":
+            loop = asyncio.ProactorEventLoop()
+        else:
+            loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-        def _scrape_in_thread():
-            if sys.platform == "win32":
-                loop = asyncio.ProactorEventLoop()
-            else:
-                loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-            async def _progress(payload):
-                fut = asyncio.run_coroutine_threadsafe(
-                    update_job_progress(job_id, payload), main_loop,
+        try:
+            leads = loop.run_until_complete(
+                scraper.scrape(
+                    query=scrape_request["query"],
+                    location=scrape_request["location"],
+                    progress_callback=lambda payload: update_job_progress(job_id, payload),
                 )
-                fut.result(timeout=15)
-
-            try:
-                return loop.run_until_complete(
-                    scraper.scrape(
-                        query=request.query,
-                        location=request.location,
-                        progress_callback=_progress,
-                    )
-                )
-            finally:
-                loop.close()
-
-        leads = await main_loop.run_in_executor(_scraper_pool, _scrape_in_thread)
+            )
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
 
         records = [
-            prepare_record(lead.to_dict(), request.query, request.location)
+            prepare_record(
+                lead.to_dict(),
+                scrape_request["query"],
+                scrape_request["location"],
+            )
             for lead in leads
         ]
 
-        base_name = build_base_name(request.query, request.location)
+        base_name = build_base_name(
+            scrape_request["query"],
+            scrape_request["location"],
+        )
         saved_files = save_records(records, base_name, PROJECT_ROOT)
-        latest_job = await get_job(job_id)
+        latest_job = get_job(job_id) or {}
         latest_progress = latest_job.get("progress", {})
         processed = int(latest_progress.get("processed", len(records)))
         total = int(latest_progress.get("total", processed))
 
-        await set_job(
+        set_job(
             job_id,
             status="completed",
             finished_at=now_iso(),
@@ -220,7 +254,7 @@ async def run_scrape_job(job_id: str, request: ScrapeRequest) -> None:
         )
     except Exception as exc:
         logger.exception("Scrape job %s failed", job_id)
-        await set_job(
+        set_job(
             job_id,
             status="failed",
             finished_at=now_iso(),
@@ -235,29 +269,59 @@ async def run_scrape_job(job_id: str, request: ScrapeRequest) -> None:
         )
 
 
-@app.get("/")
-async def root():
-    return {"message": "API jalan"}
+@app.before_request
+def handle_preflight():
+    """Handle CORS preflight (OPTIONS) requests globally."""
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        return response
 
 
-@app.get("/api/health")
-async def healthcheck() -> dict:
-    return {
-        "status": "ok",
-        "service": "leads-scrapper-backend",
-        "frontend_origins": frontend_origins,
-    }
+@app.after_request
+def apply_cors_headers(response):
+    origin = request.headers.get("Origin")
+    if origin and origin in frontend_origins:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = request.headers.get(
+            "Access-Control-Request-Headers",
+            "Content-Type, Authorization",
+        )
+    return response
 
 
-@app.post("/api/scrape/jobs")
-async def create_scrape_job(request: ScrapeRequest) -> dict:
+@app.route("/", methods=["GET"])
+def root():
+    return jsonify({"message": "API is running"})
+
+
+@app.route("/api/health", methods=["GET"])
+def healthcheck():
+    return jsonify(
+        {
+            "status": "ok",
+            "service": "leads-scrapper-backend",
+            "frontend_origins": frontend_origins,
+        }
+    )
+
+
+@app.route("/api/scrape/jobs", methods=["POST"])
+def create_scrape_job():
+    payload, error_response = validate_scrape_request(request.get_json(silent=True))
+    if error_response is not None:
+        return error_response
+
+    assert payload is not None
     job_id = uuid4().hex
     job = {
         "job_id": job_id,
         "status": "queued",
-        "query": request.query,
-        "location": request.location,
-        "max_results": request.max_results,
+        "query": payload["query"],
+        "location": payload["location"],
+        "max_results": payload["max_results"],
         "created_at": now_iso(),
         "started_at": None,
         "finished_at": None,
@@ -273,55 +337,60 @@ async def create_scrape_job(request: ScrapeRequest) -> dict:
         ),
     }
 
-    async with jobs_lock:
+    with jobs_lock:
         jobs[job_id] = job
 
-    asyncio.create_task(run_scrape_job(job_id, request))
-    return {"job_id": job_id, "status": "queued"}
+    _scraper_pool.submit(run_scrape_job, job_id, payload)
+    return jsonify({"job_id": job_id, "status": "queued"})
 
 
-@app.get("/api/scrape/jobs/{job_id}")
-async def read_scrape_job(job_id: str) -> dict:
-    return await get_job(job_id)
+@app.route("/api/scrape/jobs/<job_id>", methods=["GET"])
+def read_scrape_job(job_id: str):
+    job = get_job(job_id)
+    if job is None:
+        return json_error("Scrape job not found.", 404)
+    return jsonify(job)
 
 
-# ---- History endpoints ----
-
-JSON_DIR = PROJECT_ROOT / "data" / "json"
-
-
-@app.get("/api/history")
-async def list_history() -> list[dict]:
-    """Return a list of past scrape result files (newest first)."""
+@app.route("/api/history", methods=["GET"])
+def list_history():
     if not JSON_DIR.exists():
-        return []
-    files = sorted(JSON_DIR.glob("*.json"),
-                   key=lambda p: p.stat().st_mtime, reverse=True)
+        return jsonify([])
+
+    files = sorted(
+        JSON_DIR.glob("*.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
     results = []
-    for f in files:
-        stem = f.stem  # e.g. coffeshop_kudus-indonesia_20260306_130339
+    for file_path in files:
+        stem = file_path.stem
         parts = stem.split("_", 1)
         query = parts[0] if parts else stem
         location = parts[1].rsplit("_", 2)[0] if len(parts) > 1 else ""
-        results.append({
-            "filename": f.name,
-            "query": query.replace("-", " "),
-            "location": location.replace("-", " "),
-            "size": f.stat().st_size,
-            "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
-        })
-    return results
+        results.append(
+            {
+                "filename": file_path.name,
+                "query": query.replace("-", " "),
+                "location": location.replace("-", " "),
+                "size": file_path.stat().st_size,
+                "modified": datetime.fromtimestamp(
+                    file_path.stat().st_mtime,
+                    tz=timezone.utc,
+                ).isoformat(),
+            }
+        )
+    return jsonify(results)
 
 
-@app.get("/api/history/{filename}")
-async def get_history_file(filename: str) -> list[dict]:
-    """Return the contents of a specific history JSON file."""
-    import re as _re
-    if not _re.match(r'^[\w\-]+\.json$', filename):
-        raise HTTPException(status_code=400, detail="Invalid filename.")
+@app.route("/api/history/<filename>", methods=["GET"])
+def get_history_file(filename: str):
+    if not re.match(r"^[\w\-]+\.json$", filename):
+        return json_error("Invalid filename.", 400)
+
     filepath = JSON_DIR / filename
     if not filepath.exists() or not filepath.is_file():
-        raise HTTPException(status_code=404, detail="History file not found.")
-    import json as _json
-    with open(filepath, "r", encoding="utf-8") as fh:
-        return _json.load(fh)
+        return json_error("History file not found.", 404)
+
+    with open(filepath, "r", encoding="utf-8") as file_handle:
+        return jsonify(json.load(file_handle))

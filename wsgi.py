@@ -1,14 +1,19 @@
-from fastapi import FastAPI
-from a2wsgi import ASGIMiddleware
+"""
+WSGI entrypoint for running the Flask app behind Passenger/cPanel.
+"""
 
-app = FastAPI()
+from __future__ import annotations
 
-@app.get("/")
-async def root():
-    return {"hello": "world"}
+import os
+import sys
 
-@app.get("/api/health")
-async def health():
-    return {"status": "ok"}
 
-application = ASGIMiddleware(app)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+
+from src.api import app
+
+
+application = app
