@@ -1,10 +1,7 @@
-import sys
-import os
+"""
+Passenger entrypoint.
 
-BASE_DIR = os.path.dirname(__file__)
-sys.path.insert(0, BASE_DIR)
+Keep this file minimal so Passenger never ends up importing itself recursively.
+"""
 
-from a2wsgi import ASGIMiddleware
-from src.api import app
-
-application = ASGIMiddleware(app)
+from wsgi import application
