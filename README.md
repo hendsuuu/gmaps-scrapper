@@ -70,6 +70,10 @@ python run_local.py --query "clinic" --location "Semarang, Indonesia" --max 20
 Gunakan `passenger_wsgi.py` → `wsgi.py` → `src.api:app`.
 Pastikan Passenger dikonfigurasi untuk Python dan arahkan ke direktori `backend/`.
 
+> **Catatan:** Fitur scraping membutuhkan Playwright + Chromium yang hanya bisa
+> dijalankan di VPS / Docker / lokal. Di cPanel shared hosting, endpoint API
+> (health, history) tetap berjalan — hanya scraping yang tidak akan bisa jalan.
+
 ### Langkah setup di cPanel
 
 1. **Setup Python App** di cPanel → pilih versi Python ≥ 3.10
@@ -84,16 +88,11 @@ cd /home/<user>/<app-path>
 pip install -r requirements.txt
 ```
 
-6. **Playwright** (opsional — hanya jika server mendukung):
+6. Jika frontend dihost di domain lain, tambahkan env variable:
 
 ```bash
-playwright install chromium
+FRONTEND_ORIGIN=https://yourdomain.com,https://www.yourdomain.com
 ```
-
-> Pada shared hosting, Playwright biasanya **tidak bisa dijalankan** karena
-> butuh browser binary + system libraries. API tetap bisa berjalan
-> (endpoint `/`, `/api/health`, `/api/history`) — hanya fitur scraping
-> yang memerlukan Playwright.
 
 7. **Restart** app dari cPanel → buka domain → harus muncul `{"message": "API is running"}`
 

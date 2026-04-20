@@ -225,7 +225,7 @@ def run_scrape_job(job_id: str, scrape_request: dict) -> None:
         started_at=now_iso(),
         progress=build_progress(
             stage="collecting",
-            message="Preparing browser and proxy configuration.",
+            message="Preparing scraper configuration.",
             processed=0,
             found=0,
             total=0,
@@ -233,8 +233,8 @@ def run_scrape_job(job_id: str, scrape_request: dict) -> None:
     )
 
     try:
-        scraper_mod = _get_scraper_mod()
         exporters_mod = _get_exporters_mod()
+        scraper_mod = _get_scraper_mod()
 
         proxy_list = scraper_mod.load_proxies(str(PROXIES_FILE))
         scraper = scraper_mod.GoogleMapsScraper(
